@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Document Insight Tool</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --primary-color: #2c2c2c;
+            --secondary-color: #444;
+            --text-color: #e0e0e0;
+            --accent-color: #007bff;
+            --accent-hover-color: #0056b3;
+            --border-color: #555;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font-family);
+            background-image: url('abstract-background-with-low-poly-design.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background-color: rgba(44, 44, 44, 0.8); /* Semi-transparent background */
+            backdrop-filter: blur(10px); /* Frosted glass effect */
+            -webkit-backdrop-filter: blur(10px); /* For Safari support */
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            border: 1px solid rgba(85, 85, 85, 0.5); /* Semi-transparent border */
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: #fff;
+        }
+
+        .upload-box {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            transition: background-color 0.3s;
+        }
+
+        .upload-box:hover {
+            background-color: var(--secondary-color);
+        }
+
+        input[type="file"] {
+            margin-bottom: 1.5rem;
+            color: var(--text-color);
+        }
+        
+        /* Custom file input styling */
+        input[type="file"]::file-selector-button {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        input[type="file"]::file-selector-button:hover {
+            background-color: #555;
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--accent-color);
+            color: white;
+            font-weight: bold;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover-color);
+        }
+        
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .results-box {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        h2 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        p, li {
+            line-height: 1.6;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+        
+        #loader {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        @keyframes gradientAnimation {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>AI Document Insight Tool</h1>
+
+        <!-- File Upload Section -->
+        <div class="upload-box">
+            <input type="file" id="fileInput" accept=".pdf">
+            <button id="uploadButton">Upload and Analyze</button>
+        </div>
+
+        <!-- Insights Display Section -->
+        <div id="insightsSection" class="results-box" style="display: none;">
+            <h2>Analysis Insights</h2>
+            <p id="insightsText"></p>
+            <div id="loader" style="display: none;">Processing...</div>
+        </div>
+
+        <!-- History Section -->
+        <div class="results-box">
+            <h2>Upload History</h2>
+            <ul id="historyList">
+                <!-- History items will be inserted here -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8000';
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const insightsSection = document.getElementById('insightsSection');
+        const insightsText = document.getElementById('insightsText');
+        const historyList = document.getElementById('historyList');
+        const loader = document.getElementById('loader');
+
+        // Fetch history when the page loads
+        document.addEventListener('DOMContentLoaded', fetchHistory);
+
+        uploadButton.addEventListener('click', handleUpload);
+
+        async function handleUpload() {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a file first.");
+                return;
+            }
+
+            // Show loading state
+            uploadButton.disabled = true;
+            uploadButton.textContent = 'Processing...';
+            insightsSection.style.display = 'block';
+            insightsText.textContent = '';
+            loader.style.display = 'block';
+
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/upload-resume`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                insightsText.textContent = result.insights;
+                await fetchHistory(); // Refresh history list
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                insightsText.textContent = 'Failed to process the document. Please try again.';
+            } finally {
+                // Hide loading state
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Upload and Analyze';
+                loader.style.display = 'none';
+                fileInput.value = ''; // Clear the file input
+            }
+        }
+
+        async function fetchHistory() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/history`);
+                const data = await response.json();
+                
+                historyList.innerHTML = ''; // Clear current list
+
+                if (Object.keys(data).length === 0) {
+                     const li = document.createElement('li');
+                     li.textContent = "No documents uploaded yet.";
+                     historyList.appendChild(li);
+                } else {
+                    for (const [id, item] of Object.entries(data)) {
+                        const li = document.createElement('li');
+                        li.textContent = item.filename;
+                        historyList.appendChild(li);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching history:', error);
+                const li = document.createElement('li');
+                li.textContent = "Could not load history.";
+                historyList.appendChild(li);
+            }
+        }
+    </script>
+
+</body>
+</html>
+
+
+
