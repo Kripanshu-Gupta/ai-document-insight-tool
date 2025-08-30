@@ -3,3 +3,4 @@ uvicorn
 httpx
 aiofiles
 PyPDF2
+python-multipart
